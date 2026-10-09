@@ -16,7 +16,7 @@ class Ball {
   draw() {
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fillStyle = this.color; // Usa el color de la pelota
+    ctx.fillStyle = this.color;
     ctx.fill();
     ctx.closePath();
   }
@@ -32,9 +32,25 @@ class Ball {
   }
 
   reset() {
+    // Reaparece en el centro y cambia de dirección
     this.x = canvas.width / 2;
     this.y = canvas.height / 2;
-    this.speedX = -this.speedX; // Cambia dirección al resetear
+    this.speedX = -this.speedX;
+
+    // Nuevo tamaño (entre 5 y 20), distinto al actual
+    let newRadius;
+    do {
+      newRadius = Math.floor(Math.random() * 16) + 5;
+    } while (Math.abs(newRadius - this.radius) < 3);
+    this.radius = newRadius;
+
+    // Nuevo color aleatorio, distinto al actual
+    let newColor;
+    do {
+      const hue = Math.floor(Math.random() * 360);
+      newColor = `hsl(${hue}, 100%, 55%)`;
+    } while (newColor === this.color);
+    this.color = newColor;
   }
 }
 
@@ -51,7 +67,7 @@ class Paddle {
   }
 
   draw() {
-    ctx.fillStyle = this.color; // Usa el color de la paleta
+    ctx.fillStyle = this.color;
     ctx.fillRect(this.x, this.y, this.width, this.height);
   }
 
@@ -65,19 +81,25 @@ class Paddle {
 
   // Movimiento de la paleta automática (IA)
   autoMove(ball) {
-    // Se mueve hacia la pelota más cercana (o la única que le pasemos)
     if (ball.y < this.y + this.height / 2) {
       this.y -= this.speed;
     } else if (ball.y > this.y + this.height / 2) {
       this.y += this.speed;
     }
   }
+
+  // Alinea el centro de la paleta con la pelota (sin salirse del canvas)
+  alignTo(ball) {
+    this.y = ball.y - this.height / 2;
+    if (this.y < 0) this.y = 0;
+    if (this.y + this.height > canvas.height) this.y = canvas.height - this.height;
+  }
 }
 
 // Clase Game (Controla el juego)
 class Game {
   constructor() {
-    // 1. Crear 5 pelotas con diferente tamaño, color y velocidad
+    // Crear 5 pelotas con diferente tamaño, color y velocidad
     this.balls = [
       new Ball(canvas.width / 2, canvas.height / 2, 10, 4, 4, 'white'),
       new Ball(canvas.width / 2, canvas.height / 2, 15, -3, 5, 'cyan'),
@@ -86,21 +108,38 @@ class Game {
       new Ball(canvas.width / 2, canvas.height / 2, 6, 3, 6, 'gray')
     ];
 
-    // 2. Paletas con colores. La del jugador (izquierda) es verde y el doble de alto (200px)
-    this.paddle1 = new Paddle(0, canvas.height / 2 - 100, 10, 200, 'green', true); 
-    
-    // La paleta de la CPU (derecha) es roja y mantiene su tamaño original (100px)
-    this.paddle2 = new Paddle(canvas.width - 10, canvas.height / 2 - 50, 10, 100, 'red'); 
+    // Paleta del jugador (izquierda): verde y de 200px de alto
+    this.paddle1 = new Paddle(0, canvas.height / 2 - 100, 10, 200, 'green', true);
 
-    this.keys = {}; // Para capturar las teclas
+    // Paleta de la CPU (derecha): roja y de 100px de alto
+    this.paddle2 = new Paddle(canvas.width - 10, canvas.height / 2 - 50, 10, 100, 'red');
+
+    this.keys = {};
+  }
+
+  // Devuelve la pelota que llegará primero a la paleta de la CPU
+  getMostUrgentBall() {
+    let urgent = null;
+    let minTime = Infinity;
+
+    this.balls.forEach(ball => {
+      if (ball.speedX <= 0) return; // ignora las que se alejan de la CPU
+      const time = (this.paddle2.x - ball.x) / ball.speedX;
+      if (time >= 0 && time < minTime) {
+        minTime = time;
+        urgent = ball;
+      }
+    });
+
+    return urgent;
   }
 
   draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Dibujar todas las pelotas
     this.balls.forEach(ball => ball.draw());
-    
+
     // Dibujar paletas
     this.paddle1.draw();
     this.paddle2.draw();
@@ -115,15 +154,17 @@ class Game {
       this.paddle1.move('down');
     }
 
-    // Movimiento de la paleta 2 (Controlada por IA)
-    // La IA sigue a la primera pelota (puedes cambiarlo si quieres que siga a otra)
-    this.paddle2.autoMove(this.balls[0]);
+    // La IA sigue a la pelota más urgente (la que llegará primero)
+    const urgentBall = this.getMostUrgentBall();
+    if (urgentBall) {
+      this.paddle2.autoMove(urgentBall);
+    }
 
     // Actualizar cada pelota
     this.balls.forEach(ball => {
       ball.move();
 
-      // Colisión con la paleta 1 (Jugador) - Detecta TODAS las pelotas
+      // Colisión con la paleta 1 (Jugador)
       if (
         ball.x - ball.radius <= this.paddle1.x + this.paddle1.width &&
         ball.x + ball.radius >= this.paddle1.x &&
@@ -131,8 +172,12 @@ class Game {
         ball.y - ball.radius <= this.paddle1.y + this.paddle1.height
       ) {
         ball.speedX = -ball.speedX;
-        // Opcional: Mover la pelota un poco para evitar que se quede atascada
         ball.x = this.paddle1.x + this.paddle1.width + ball.radius;
+      }
+
+      // GARANTÍA: si una pelota llega a la zona de la CPU, la paleta se alinea con ella
+      if (ball.speedX > 0 && ball.x + ball.radius >= this.paddle2.x) {
+        this.paddle2.alignTo(ball);
       }
 
       // Colisión con la paleta 2 (CPU)
@@ -143,11 +188,10 @@ class Game {
         ball.y - ball.radius <= this.paddle2.y + this.paddle2.height
       ) {
         ball.speedX = -ball.speedX;
-        // Opcional: Mover la pelota un poco para evitar que se quede atascada
         ball.x = this.paddle2.x - ball.radius;
       }
 
-      // Detectar cuando la pelota sale de los bordes (punto marcado)
+      // Cuando la pelota sale del área de juego: reaparece con otro color y tamaño
       if (
         ball.x - ball.radius <= 0 ||
         ball.x + ball.radius >= canvas.width
