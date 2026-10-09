@@ -1,11 +1,107 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
 body {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: #333;
+  min-height: 100vh;
+  position: relative;
+
+  /* Degradado animado en lugar del #333 */
+  background: linear-gradient(135deg, #0f0c29, #302b63, #1b2a49, #0f2027, #3a1c71);
+  background-size: 400% 400%;
+  animation: gradientShift 20s ease infinite;
+}
+
+/* Manchas de luz difuminadas que flotan por el fondo */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::before {
+  width: 45vmax;
+  height: 45vmax;
+  background: #7c4dff;
+  top: -15vmax;
+  left: -10vmax;
+  animation: floatA 22s ease-in-out infinite alternate;
+}
+
+body::after {
+  width: 40vmax;
+  height: 40vmax;
+  background: #00e5ff;
+  bottom: -15vmax;
+  right: -10vmax;
+  animation: floatB 26s ease-in-out infinite alternate;
+}
+
+/* Cuadrícula sutil que se desplaza */
+html::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: gridMove 12s linear infinite;
+  pointer-events: none;
+  z-index: 0;
 }
 
 canvas {
-  border: 2px solid #fff;
+  display: block;
+  position: relative;
+  z-index: 1;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  animation: glow 4s ease-in-out infinite alternate;
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes floatA {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(30vw, 25vh) scale(1.3); }
+}
+
+@keyframes floatB {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-30vw, -25vh) scale(1.25); }
+}
+
+@keyframes gridMove {
+  from { background-position: 0 0; }
+  to   { background-position: 50px 50px; }
+}
+
+@keyframes glow {
+  from { box-shadow: 0 0 30px rgba(124, 77, 255, 0.5), 0 0 70px rgba(124, 77, 255, 0.2); }
+  to   { box-shadow: 0 0 40px rgba(0, 229, 255, 0.55), 0 0 90px rgba(0, 229, 255, 0.25); }
+}
+
+/* Respeta a quien tiene desactivadas las animaciones en su sistema */
+@media (prefers-reduced-motion: reduce) {
+  body, body::before, body::after, html::before, canvas {
+    animation: none;
+  }
 }
